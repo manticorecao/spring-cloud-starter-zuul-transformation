@@ -5,19 +5,12 @@ import com.netflix.zuul.context.RequestContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.cloud.netflix.zuul.filters.ProxyRequestHelper;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.multipart.MultipartRequest;
 import org.springframework.web.util.UrlPathHelper;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.Part;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
@@ -205,51 +198,6 @@ public class TransformationRequestHelper {
             return requestEntity;
         }
 
-
-        private synchronized void buildContentData() {
-            try {
-                MultiValueMap<String, Object> builder = new LinkedMultiValueMap<String, Object>();
-                Set<String> queryParams = findQueryParams();
-                for (Map.Entry<String, String[]> entry : this.request.getParameterMap()
-                        .entrySet()) {
-                    if (!queryParams.contains(entry.getKey())) {
-                        for (String value : entry.getValue()) {
-                            builder.add(entry.getKey(), value);
-                        }
-                    }
-                }
-                if (this.request instanceof MultipartRequest) {
-                    MultipartRequest multi = (MultipartRequest) this.request;
-                    for (Map.Entry<String, List<MultipartFile>> parts : multi
-                            .getMultiFileMap().entrySet()) {
-                        for (Part file : this.request.getParts()) {
-                            HttpHeaders headers = new HttpHeaders();
-                            headers.setContentDispositionFormData(file.getName(),
-                                    file.getSubmittedFileName());
-                            if (file.getContentType() != null) {
-                                headers.setContentType(
-                                        MediaType.valueOf(file.getContentType()));
-                            }
-                            HttpEntity<Resource> entity = new HttpEntity<Resource>(
-                                    new InputStreamResource(file.getInputStream()),
-                                    headers);
-                            builder.add(parts.getKey(), entity);
-                        }
-                    }
-                }
-                FormHttpOutputMessage data = new FormHttpOutputMessage();
-                this.contentType = MediaType.valueOf(this.request.getContentType());
-                data.getHeaders().setContentType(this.contentType);
-                this.converter.write(builder, this.contentType, data);
-                // copy new content type including multipart boundary
-                this.contentType = data.getHeaders().getContentType();
-                this.contentData = data.getInput();
-                this.contentLength = this.contentData.length;
-            }
-            catch (Exception e) {
-                throw new IllegalStateException("Cannot convert form data", e);
-            }
-        }
 
         private Set<String> findQueryParams() {
             Set<String> result = new HashSet<>();
